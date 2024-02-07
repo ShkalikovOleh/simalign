@@ -1,12 +1,15 @@
 import logging
 from typing import Text
-import os
 
 
-def get_logger(name: Text, filename: Text = None, level: int = logging.DEBUG) -> logging.Logger:
+def get_logger(
+    name: Text, filename: Text = None, level: int = logging.DEBUG
+) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     ch = logging.StreamHandler()
     ch.setLevel(level)
