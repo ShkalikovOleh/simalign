@@ -1,6 +1,6 @@
 # coding=utf-8
 
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -250,6 +250,24 @@ class SentenceAligner(object):
             count += 1
         return inter
 
+    def get_word_aligns_batched(
+        self, src_sents: List[List[str]], tgt_sents: List[List[str]]
+    ) -> Iterable[Dict[str, List]]:
+        assert len(src_sents) == len(tgt_sents), "Input batches size mismatch"
+
+        vectors = (
+            self.embed_loader.get_embed_list([*src_sents, *tgt_sents])
+            .cpu()
+            .detach()
+            .numpy()
+        )
+
+        for i in range(len(src_sents)):
+            src_sent = src_sents[i]
+            trg_sent = tgt_sents[i]
+            features = vectors[[i, i + len(src_sents)], :, :]
+            yield self.__calculate_word_alignments(features, src_sent, trg_sent)
+
     def get_word_aligns(
         self, src_sent: Union[str, List[str]], trg_sent: Union[str, List[str]]
     ) -> Dict[str, List]:
@@ -257,6 +275,17 @@ class SentenceAligner(object):
             src_sent = src_sent.split()
         if isinstance(trg_sent, str):
             trg_sent = trg_sent.split()
+
+        vectors = (
+            self.embed_loader.get_embed_list([src_sent, trg_sent])
+            .cpu()
+            .detach()
+            .numpy()
+        )
+
+        return self.__calculate_word_alignments(vectors, src_sent, trg_sent)
+
+    def __calculate_word_alignments(self, vectors, src_sent, trg_sent):
         l1_tokens = [self.embed_loader.tokenizer.tokenize(word) for word in src_sent]
         l2_tokens = [self.embed_loader.tokenizer.tokenize(word) for word in trg_sent]
         bpe_lists = [
@@ -271,12 +300,6 @@ class SentenceAligner(object):
             for i, wlist in enumerate(l2_tokens):
                 l2_b2w_map += [i for x in wlist]
 
-        vectors = (
-            self.embed_loader.get_embed_list([src_sent, trg_sent])
-            .cpu()
-            .detach()
-            .numpy()
-        )
         vectors = [vectors[i, : len(bpe_lists[i])] for i in [0, 1]]
 
         if self.token_type == "word":
